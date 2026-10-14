@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SE Bluetooth</title>
+<style>
+:root {
+  --bg: #f5f5f7; --panel: #ffffff; --line: #e3e3e8; --text: #1d1d1f; --muted: #6e6e73;
+  --accent: #0a66d8; --accent-text: #fff; --danger: #c62828; --sel: #e8f0fd; --ok: #1f8a3b; --warn: #b26a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1e; --panel: #2c2c2e; --line: #3a3a3c; --text: #f2f2f7; --muted: #98989f;
+    --accent: #3d8bfd; --accent-text: #fff; --danger: #ff6b6b; --sel: #23324a; --ok: #4cd964; --warn: #ffb340;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: flex; flex-direction: column; }
+header { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+header h1 { font-size: 16px; margin: 0 8px 0 0; font-weight: 600; }
+.pill { font-size: 12px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--muted); }
+.pill.ok { color: var(--ok); border-color: currentColor; }
+.pill.warn { color: var(--warn); border-color: currentColor; }
+.spacer { flex: 1; }
+button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+button.danger { color: var(--danger); }
+main { flex: 1; display: flex; min-height: 0; }
+nav { width: 230px; flex-shrink: 0; overflow: auto; border-right: 1px solid var(--line); padding: 10px 6px; background: var(--panel); }
+nav .group { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 12px 10px 4px; }
+nav a { display: flex; justify-content: space-between; gap: 6px; padding: 5px 10px; border-radius: 6px; color: inherit; text-decoration: none; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+nav a.active { background: var(--sel); }
+nav a:hover { background: var(--sel); }
+nav label { display: block; padding: 10px; color: var(--muted); font-size: 12px; cursor: pointer; }
+nav .device { padding: 6px 10px; font-size: 12px; color: var(--muted); }
+nav .device a { display: inline; padding: 0; color: var(--accent); }
+section { flex: 1; overflow: auto; padding: 14px 16px 80px; position: relative; }
+.crumb { color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.crumb a { color: var(--accent); cursor: pointer; }
+.crumb b { color: var(--text); }
+.crumb .count { margin: 0 8px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; cursor: pointer; position: relative; user-select: none; }
+.card.sel { outline: 2px solid var(--accent); background: var(--sel); }
+.thumb { height: 100px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: var(--bg); overflow: hidden; font-size: 13px; color: var(--muted); font-weight: 600; position: relative; }
+.thumb img { max-width: 100%; max-height: 100%; }
+.thumb.folder { font-size: 44px; font-weight: 400; }
+.thumb.video::after { content: "▶"; position: absolute; right: 6px; bottom: 4px; font-size: 14px; color: #fff; text-shadow: 0 0 4px rgba(0,0,0,.8); }
+.name { font-size: 12px; margin-top: 6px; word-break: break-all; }
+.size { font-size: 11px; color: var(--muted); }
+.card input { position: absolute; top: 12px; left: 12px; }
+.empty { color: var(--muted); padding: 40px; text-align: center; }
+.setup { max-width: 560px; margin: 30px auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px 24px; }
+.setup h2 { margin: 0 0 10px; font-size: 17px; }
+.setup ol { padding-left: 20px; color: var(--muted); }
+.setup .found { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+.setup .found div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.setup .hint { margin-top: 12px; color: var(--warn); font-weight: 600; }
+#drop { position: fixed; inset: 0; background: color-mix(in srgb, var(--accent) 18%, transparent); border: 3px dashed var(--accent); display: none; align-items: center; justify-content: center; font-size: 22px; font-weight: 600; z-index: 10; pointer-events: none; }
+#drop.on { display: flex; }
+#log { position: fixed; right: 16px; bottom: 16px; width: 340px; max-height: 50vh; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.15); display: none; z-index: 5; }
+#log.on { display: block; }
+#log .row { padding: 7px 12px; border-bottom: 1px solid var(--line); font-size: 12px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+#log .row .st { color: var(--muted); white-space: nowrap; }
+#log .row .st.ok { color: var(--ok); } #log .row .st.err { color: var(--danger); white-space: normal; }
+#log .row .bar { flex-basis: 100%; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; display: none; }
+#log .row .bar.on { display: block; }
+#log .row .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+#log .head { padding: 8px 12px; font-weight: 600; display: flex; justify-content: space-between; }
+#opts { display: flex; align-items: center; gap: 18px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+#opts label { display: flex; align-items: center; gap: 6px; }
+#opts select { font: inherit; padding: 3px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+#opts .note { font-size: 12px; }
+#err { background: var(--danger); color: #fff; padding: 8px 16px; display: none; }
+#err.on { display: block; }
+#viewer { position: fixed; inset: 0; background: rgba(0,0,0,.8); display: none; align-items: center; justify-content: center; z-index: 20; flex-direction: column; gap: 12px; color: #fff; }
+#viewer.on { display: flex; }
+#viewer img { max-width: 90vw; max-height: 80vh; min-width: 320px; }
+#viewer video { width: min(90vw, 528px); max-height: 80vh; background: #000; }
+#viewer [hidden] { display: none; }
+@media (max-width: 640px) { nav { width: 150px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>SE Bluetooth</h1>
+  <span id="status" class="pill">…</span>
+  <span class="spacer"></span>
+  <button id="bRefresh">Refresh</button>
+  <button id="bMkdir">New folder</button>
+  <button id="bUpload" class="primary">Upload to phone…</button>
+  <button id="bDownload" disabled>Download</button>
+  <button id="bDelete" class="danger" disabled>Delete</button>
+  <button id="bQuit">Quit</button>
+  <input id="fileInput" type="file" multiple hidden>
+</header>
+<div id="opts">
+  <span>When uploading:</span>
+  <label>Pictures
+    <select id="optImg">
+      <option value="">Keep original</option>
+      <option value="fit">Fit screen 176×220</option>
+      <option value="fill">Wallpaper 176×220 (crop)</option>
+    </select>
+  </label>
+  <label>Music
+    <select id="optMp3">
+      <option value="">Keep original</option>
+    </select>
+  </label>
+  <label>Videos
+    <select id="optVid">
+      <option value="">Keep original</option>
+      <option value="small">Convert to 3GP, small (~0.8 MB/min)</option>
+      <option value="normal">Convert to 3GP, normal (~1.3 MB/min)</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="optSort" checked> Put into Pictures / Sounds / Videos by type</label>
+  <span class="note" id="optNote"></span>
+</div>
+<div id="err"></div>
+<main>
+  <nav id="nav"></nav>
+  <section id="main"><div class="empty">Starting…</div></section>
+</main>
+<div id="drop">Drop to upload to the phone</div>
+<div id="log"><div class="head"><span id="logTitle">Transfer</span><a href="#" id="logClose">×</a></div><div id="logRows"></div></div>
+<div id="viewer"><img id="vImg" alt=""><video id="vVid" controls playsinline hidden></video><div id="vName"></div><div><button id="vSave">Download</button> <button id="vClose">Close</button></div></div>
+
+<script>
+const PHONE = "/Phone memory", CARD = "/Memory Stick";
+const PLACES = [
+  ["Pictures", PHONE + "/Pictures"],
+  ["Camera", PHONE + "/Pictures/camera_semc/100MSDCF"],
+  ["Sounds", PHONE + "/Sounds"],
+  ["Videos", PHONE + "/Videos"],
+  ["Themes", PHONE + "/Themes"],
+  ["Card · Camera", CARD + "/DCIM/100MSDCF"],
+  ["Card · Pictures", CARD + "/MSSEMC/Media files/image"],
+  ["Card · Music", CARD + "/MSSEMC/Media files/audio"],
+  ["Card · Videos", CARD + "/MSSEMC/Media files/video"],
+];
+const IMG = /\.(jpe?g|gif|png|bmp)$/i;
+const VID = /\.(3gp|3g2|mp4)$/i;  // phone videos: previewed as a server-made MP4 and poster frame
+const HIDDEN = (name) => name.startsWith(".") || name === "System Volume Information";
+const POSTER_MAX = 300 * 1024;  // reading a video for its poster takes ~20 s per 300 KB
+
+let lists = new Map();  // folder path -> entries
+let cur = PHONE + "/Pictures";
+let selected = new Set();
+let phone = null, connected = false;
+let videoPreview = false;
+let showHidden = false;
+try { showHidden = localStorage.getItem("hidden") === "1"; cur = localStorage.getItem("cur") || cur; } catch (e) {}
+const thumbs = new Map();
+const failedThumbs = new Set();
+let thumbQueue = [];
+let thumbBusy = false;
+let busy = 0;
+let loadFailed = false;
+
+const $ = (id) => document.getElementById(id);
+const parent = (p) => p.slice(0, p.lastIndexOf("/")) || "/";
+const base = (p) => p.slice(p.lastIndexOf("/") + 1);
+const fmt = (n) => n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(1) + " KB" : (n / 1048576).toFixed(2) + " MB";
+const visible = (entries) => entries.filter((e) => showHidden || !HIDDEN(e.name));
+
+function showErr(msg) { $("err").textContent = msg; $("err").classList.toggle("on", !!msg); }
+
+async function api(path, opts = {}) {
+  // the server only accepts POSTs that carry this header (CSRF protection)
+  if (opts.method === "POST") opts.headers = { ...(opts.headers || {}), "X-SE": "1" };
+  const r = await fetch(path, opts);
+  if (!r.ok) {
+    let m = "Error " + r.status;
+    try { m = (await r.json()).error || m; } catch (e) {}
+    const err = new Error(m);
+    err.status = r.status;
+    throw err;
+  }
+  return r;
+}
+
+// a request whose phone transfer reports progress under a job id
+async function withJob(url, opts, set) {
+  const job = Math.random().toString(36).slice(2);
+  url += (url.includes("?") ? "&" : "?") + "job=" + job;
+  const poll = setInterval(async () => {
+    try {
+      const d = describe(await (await fetch("/api/progress?job=" + job)).json(), "from phone");
+      if (d) set(d[0], "", d[1]);
+    } catch (e) {}
+  }, 400);
+  try { return await api(url, opts); } finally { clearInterval(poll); }
+}
+
+// thumbs holds object URLs: picture thumbnail under the path, video poster/player under "poster:"/"video:"
+function forgetThumb(p) {
+  for (const k of [p, "poster:" + p, "video:" + p, "full:" + p]) {
+    failedThumbs.delete(k);
+    if (thumbs.has(k)) { URL.revokeObjectURL(thumbs.get(k)); thumbs.delete(k); }
+  }
+}
+
+async function blobFor(key, url) {
+  if (!thumbs.has(key)) {
+    const b = await (await api(url)).blob();
+    thumbs.set(key, URL.createObjectURL(b));
+  }
+  return thumbs.get(key);
+}
+
+const q = (p) => encodeURIComponent(p);
+const thumbBlob = (p) => blobFor(p, "/api/thumb?path=" + q(p));
+const posterBlob = (p) => blobFor("poster:" + p, "/api/file?inline=1&preview=poster&path=" + q(p));
+const videoBlob = (p) => blobFor("video:" + p, "/api/file?inline=1&preview=video&path=" + q(p));
+
+async function status() {
+  const el = $("status");
+  try {
+    const s = await (await api("/api/status")).json();
+    phone = s.phone; connected = s.connected;
+    if (!phone) { el.className = "pill warn"; el.textContent = "No phone paired"; }
+    else { el.className = "pill " + (connected ? "ok" : ""); el.textContent = phone.name + (connected ? " · connected" : s.busy ? " · connecting…" : " · not connected"); }
+    return s;
+  } catch (e) { el.textContent = "App is not running"; el.className = "pill warn"; return null; }
+}
+
+async function list(path, refresh) {
+  const r = await (await api("/api/list?path=" + q(path) + (refresh ? "&refresh=1" : ""))).json();
+  lists.set(r.path, r.entries);
+  return r.entries;
+}
+
+async function load(refresh) {
+  showErr("");
+  const s = await status();
+  if (!s) return;
+  if (!s.phone) { setup(); return; }
+  if (refresh) lists.clear();
+  if (!lists.has("/")) $("main").innerHTML = '<div class="empty">Connecting to the phone over Bluetooth… (the W810i can take up to 30 s to answer)</div>';
+  try {
+    const roots = await list("/", refresh);
+    for (const r of roots) if (r.folder) await list(r.path, refresh);
+    try { await list(cur, refresh); } catch (e) { if (e.status === 503) throw e; cur = PHONE + "/Pictures"; await list(cur, refresh); }
+    loadFailed = false;
+  } catch (e) {
+    loadFailed = true;
+    showErr(e.message);
+    if (!lists.has("/")) {
+      $("main").innerHTML = '<div class="empty">Can\'t reach the phone. Check that its Bluetooth is on and it\'s close to the Mac, then click “Refresh”.</div>';
+      renderNav();
+      await status();
+      return;
+    }
+  }
+  await status();
+  render();
+}
+
+async function open(path) {
+  cur = path; selected.clear();
+  try { localStorage.setItem("cur", cur); } catch (e) {}
+  if (!lists.has(path)) {
+    render();
+    $("main").insertAdjacentHTML("beforeend", '<div class="empty">Reading folder…</div>');
+    try { await list(path); } catch (e) { showErr(e.message); }
+  }
+  render();
+}
+
+function renderNav() {
+  const nav = $("nav");
+  nav.innerHTML = "";
+  const link = (label, path) => {
+    const a = document.createElement("a");
+    a.className = path === cur ? "active" : "";
+    a.title = path;
+    a.textContent = label;
+    a.onclick = () => open(path);
+    nav.appendChild(a);
+  };
+  const g = (t) => { const d = document.createElement("div"); d.className = "group"; d.textContent = t; nav.appendChild(d); };
+  const roots = lists.get("/") || [];
+  const hasCard = roots.some((r) => r.path === CARD);
+  if (roots.length) {
+    g("Places");
+    for (const [l, p] of PLACES) if (p.startsWith(PHONE) || hasCard) link(l, p);
+    for (const r of roots.filter((r) => r.folder)) {
+      g(r.name);
+      link("All files", r.path);
+      for (const e of visible(lists.get(r.path) || []).filter((e) => e.folder)) link(e.name, e.path);
+    }
+    const lab = document.createElement("label");
+    lab.innerHTML = `<input type="checkbox" ${showHidden ? "checked" : ""}> Show hidden files`;
+    lab.querySelector("input").onchange = (e) => { showHidden = e.target.checked; try { localStorage.setItem("hidden", showHidden ? "1" : "0"); } catch (x) {} render(); };
+    nav.appendChild(lab);
+  }
+  if (phone) {
+    g("Phone");
+    const d = document.createElement("div");
+    d.className = "device";
+    d.innerHTML = `<span></span><br><span></span><br><a href="#">Pair another phone</a>`;
+    d.children[0].textContent = phone.name;
+    d.children[2].textContent = phone.address.replaceAll("-", ":").toUpperCase();
+    d.querySelector("a").onclick = (e) => { e.preventDefault(); setup(); };
+    nav.appendChild(d);
+  }
+}
+
+function render() {
+  renderNav();
+  const entries = lists.get(cur);
+  const main = $("main");
+  main.innerHTML = "";
+  const crumb = document.createElement("div");
+  crumb.className = "crumb";
+  const parts = cur.split("/").filter(Boolean);
+  let acc = "";
+  parts.forEach((p, i) => {
+    acc += "/" + p;
+    if (i) crumb.append(" / ");
+    const el = document.createElement(i === parts.length - 1 ? "b" : "a");
+    el.textContent = p;
+    const target = acc;
+    if (el.tagName === "A") el.onclick = () => open(target);
+    crumb.appendChild(el);
+  });
+  main.appendChild(crumb);
+  if (!entries) { updateButtons(); return; }
+  const shown = visible(entries).sort((a, b) => (b.folder - a.folder) || a.name.localeCompare(b.name));
+  const nFiles = shown.filter((e) => !e.folder).length;
+  crumb.insertAdjacentHTML("beforeend", `<span class="count">· ${nFiles} file${nFiles === 1 ? "" : "s"}</span><button id="bAll">Select all</button>`);
+  crumb.querySelector("#bAll").onclick = () => {
+    const all = shown.every((e) => selected.has(e.path));
+    shown.forEach((e) => all ? selected.delete(e.path) : selected.add(e.path));
+    render();
+  };
+  if (!shown.length) main.insertAdjacentHTML("beforeend", '<div class="empty">Empty. Drag files here to upload them to the phone.</div>');
+  const grid = document.createElement("div");
+  grid.className = "grid";
+  thumbQueue = [];
+  for (const f of shown) {
+    const c = document.createElement("div");
+    c.className = "card" + (selected.has(f.path) ? " sel" : "");
+    c.innerHTML = `<input type="checkbox" ${selected.has(f.path) ? "checked" : ""}><div class="thumb"></div><div class="name"></div><div class="size">${f.folder ? "folder" : fmt(f.size)}</div>`;
+    c.querySelector(".name").textContent = f.name;
+    const th = c.querySelector(".thumb");
+    c.querySelector("input").onclick = (e) => { e.stopPropagation(); toggle(f.path); };
+    if (f.folder) {
+      th.classList.add("folder"); th.textContent = "📁";
+      c.onclick = (e) => { if (e.metaKey || e.shiftKey) toggle(f.path); else open(f.path); };
+    } else {
+      const isVid = VID.test(f.path) && videoPreview;
+      if (isVid) th.classList.add("video");
+      const key = isVid ? "poster:" + f.path : f.path;
+      if (thumbs.has(key)) th.innerHTML = `<img src="${thumbs.get(key)}" alt="">`;
+      else {
+        th.textContent = (f.name.split(".").pop() || "").toUpperCase().slice(0, 4) || "file";
+        if (!failedThumbs.has(key)) {
+          if (IMG.test(f.path)) thumbQueue.push([f.path, th, thumbBlob, key]);
+          if (isVid && f.size < POSTER_MAX) thumbQueue.push([f.path, th, posterBlob, key]);
+        }
+      }
+      c.onclick = (e) => {
+        if (e.metaKey || e.shiftKey) { toggle(f.path); return; }
+        if (IMG.test(f.path) || (VID.test(f.path) && videoPreview)) openViewer(f); else toggle(f.path);
+      };
+    }
+    grid.appendChild(c);
+  }
+  main.appendChild(grid);
+  updateButtons();
+  pumpThumbs();
+}
+
+function toggle(p) { selected.has(p) ? selected.delete(p) : selected.add(p); render(); }
+
+function selectedEntries() {
+  return (lists.get(cur) || []).filter((e) => selected.has(e.path));
+}
+
+function updateButtons() {
+  const sel = selectedEntries();
+  const files = sel.filter((e) => !e.folder);
+  const inside = cur.split("/").filter(Boolean).length > 0;
+  $("bDownload").disabled = !files.length;
+  $("bDelete").disabled = !sel.length;
+  $("bDownload").textContent = files.length ? `Download (${files.length})` : "Download";
+  $("bDelete").textContent = sel.length ? `Delete (${sel.length})` : "Delete";
+  $("bMkdir").disabled = !inside || !lists.has(cur);
+  $("bUpload").disabled = !inside || !phone;
+}
+
+async function pumpThumbs() {
+  if (thumbBusy) return;
+  thumbBusy = true;
+  while (thumbQueue.length) {
+    if (busy) { await new Promise((r) => setTimeout(r, 500)); continue; }
+    const [p, el, getBlob, key] = thumbQueue.shift();
+    if (failedThumbs.has(key)) continue;
+    try {
+      const url = await getBlob(p);
+      if (el.isConnected) el.innerHTML = `<img src="${url}" alt="">`;
+    } catch (e) {
+      if (e.status === 503) break;  // phone gone: stop, don't hammer it
+      failedThumbs.add(key);
+    }
+  }
+  thumbBusy = false;
+}
+
+function saveBlob(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+let viewing = null;
+async function openViewer(f) {
+  const p = f.path;
+  viewing = p;
+  const isVid = VID.test(p);
+  $("vImg").hidden = isVid;
+  $("vVid").hidden = !isVid;
+  $("viewer").classList.add("on");
+  const label = (t) => { if (viewing === p) $("vName").textContent = base(p) + (t ? " · " + t : ""); };
+  if (isVid) {
+    const v = $("vVid");
+    v.poster = thumbs.get("poster:" + p) || "";
+    label("reading video from the phone…");
+    try {
+      const url = thumbs.get("video:" + p) || await (async () => {
+        // read with progress first, then convert (the server keeps the bytes)
+        if (!thumbs.has("video:" + p)) await withJob("/api/file?path=" + q(p), {}, (t) => label(t));
+        label("preparing video…");
+        return videoBlob(p);
+      })();
+      if (viewing === p) { v.src = url; v.play().catch(() => {}); label(""); }
+    } catch (e) { showErr(e.message); label(""); }
+    return;
+  }
+  $("vImg").src = thumbs.get("full:" + p) || thumbs.get(p) || "";
+  label(thumbs.has("full:" + p) ? "" : `loading ${fmt(f.size)}…`);
+  if (!thumbs.has("full:" + p)) {
+    try {
+      const r = await withJob("/api/file?inline=1&preview=1&path=" + q(p), {}, (t) => label(t));
+      thumbs.set("full:" + p, URL.createObjectURL(await r.blob()));
+      if (viewing === p) { $("vImg").src = thumbs.get("full:" + p); label(""); }
+    } catch (e) { showErr(e.message); label(""); }
+  }
+}
+$("vClose").onclick = () => {
+  const v = $("vVid");
+  v.pause(); v.removeAttribute("src"); v.load();
+  $("viewer").classList.remove("on"); viewing = null;
+};
+$("viewer").onclick = (e) => { if (e.target.id === "viewer") $("vClose").onclick(); };
+$("vSave").onclick = async () => {
+  const p = viewing;
+  try {
+    const r = thumbs.has("full:" + p) ? await fetch(thumbs.get("full:" + p)) : await api("/api/file?path=" + q(p));
+    saveBlob(await r.blob(), base(p));
+  } catch (e) { showErr(e.message); }
+};
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("vClose").onclick(); });
+
+function logStart(title) { $("logTitle").textContent = title; $("logRows").innerHTML = ""; $("log").classList.add("on"); }
+function logRow(name) {
+  const r = document.createElement("div"); r.className = "row";
+  r.innerHTML = `<span></span><span class="st">waiting</span><div class="bar"><i></i></div>`;
+  r.firstChild.textContent = name;
+  $("logRows").appendChild(r);
+  const st = r.children[1], bar = r.children[2];
+  // set(text, cls, fraction): fraction 0..1 shows the bar, null hides it
+  return (t, cls, frac = null) => {
+    st.textContent = t; st.className = "st " + (cls || "");
+    bar.classList.toggle("on", frac != null);
+    if (frac != null) bar.firstChild.style.width = Math.round(frac * 100) + "%";
+  };
+}
+
+const secs = (s) => {
+  if (s == null) return "";
+  const t = Math.ceil(s);
+  return t < 60 ? `${t} s` : `${Math.floor(t / 60)} min ${t % 60} s`;
+};
+
+function describe(p, dirText = "to phone") {
+  if (p.stage === "compressing") return p.total ? [`compressing ${Math.round(p.done / p.total * 100)}%`, p.done / p.total] : ["compressing…", null];
+  if (p.stage === "waiting") return ["waiting for the phone…", 0];
+  if ((p.stage === "writing" || p.stage === "reading") && p.total) {
+    const f = p.done / p.total;
+    const speed = p.rate ? ` · ${fmt(p.rate)}/s` : "";
+    const left = p.eta != null && p.done ? ` · ${secs(p.eta)} left` : "";
+    return [`${dirText} ${Math.round(f * 100)}% · ${fmt(p.done)} of ${fmt(p.total)}${speed}${left}`, f];
+  }
+  return null;
+}
+
+// POST one file with real progress: sending to the app (XHR), then compressing and
+// writing to the phone (polled from /api/progress while the request is open)
+function sendFile(file, dest, set) {
+  const job = Math.random().toString(36).slice(2);
+  const params = new URLSearchParams({
+    dir: dest, name: file.name, img: $("optImg").value, mp3: $("optMp3").value, video: $("optVid").value,
+    sort: $("optSort").checked ? "1" : "0", job,
+  });
+  return new Promise((resolve, reject) => {
+    let poll = null;
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload?" + params);
+    xhr.setRequestHeader("X-SE", "1");
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) set(`sending ${Math.round(e.loaded / e.total * 100)}%`, "", e.loaded / e.total); };
+    xhr.upload.onload = () => {
+      set("preparing…", "", null);
+      poll = setInterval(async () => {
+        try {
+          const d = describe(await (await fetch("/api/progress?job=" + job)).json());
+          if (d && xhr.readyState !== 4) set(d[0], "", d[1]);
+        } catch (e) {}
+      }, 400);
+    };
+    xhr.onloadend = () => {
+      clearInterval(poll);
+      let body = {};
+      try { body = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 200) resolve(body);
+      else reject(Object.assign(new Error(body.error || (xhr.status ? "Error " + xhr.status : "The app is not running")), { status: xhr.status }));
+    };
+    xhr.send(file);
+  });
+}
+$("logClose").onclick = (e) => { e.preventDefault(); $("log").classList.remove("on"); };
+
+async function download() {
+  const paths = selectedEntries().filter((e) => !e.folder).map((e) => e.path);
+  if (!paths.length) return;
+  busy++;
+  logStart("Downloading");
+  try {
+    if (paths.length === 1) {
+      const st = logRow(base(paths[0])); st("starting…");
+      const b = await (await withJob("/api/file?path=" + q(paths[0]), {}, st)).blob();
+      saveBlob(b, base(paths[0])); st("done → Downloads", "ok");
+    } else {
+      const st = logRow(paths.length + " files → W810i_files.zip"); st("starting…");
+      const b = await (await withJob("/api/zip", { method: "POST", body: JSON.stringify({ paths }) }, st)).blob();
+      saveBlob(b, "W810i_files.zip"); st("done → Downloads", "ok");
+    }
+    $("logTitle").textContent = "Download finished";
+  } catch (e) { showErr(e.message); $("logTitle").textContent = "Download failed"; }
+  busy--;
+}
+
+async function upload(fileList) {
+  const items = [...fileList];
+  if (!items.length || $("bUpload").disabled) return;
+  busy++;
+  const dest = cur;  // browsing elsewhere while it runs must not move the remaining files
+  logStart("Uploading");
+  const rows = items.map((f) => logRow(f.name));
+  let last = null, failed = -1;
+  for (let i = 0; i < items.length; i++) {
+    $("logTitle").textContent = `Uploading ${i + 1} of ${items.length}`;
+    try {
+      const res = await sendFile(items[i], dest, rows[i]);
+      forgetThumb(res.path);
+      lists.delete(parent(res.path));
+      last = res.path;
+      const shrunk = res.size < res.original ? ` · ${fmt(res.original)} → ${fmt(res.size)}` : "";
+      rows[i](`done → ${parent(res.path).split("/").pop()}/${base(res.path)}${shrunk}`, "ok");
+    } catch (e) { rows[i](e.message, "err"); showErr(e.message); failed = i; break; }
+  }
+  if (failed >= 0) {
+    for (let i = failed + 1; i < items.length; i++) rows[i]("skipped", "err");
+    $("logTitle").textContent = `Upload stopped: ${failed} of ${items.length} sent`;
+  } else {
+    $("logTitle").textContent = `Upload finished: ${items.length} of ${items.length} sent`;
+  }
+  busy--;
+  if (last) await open(parent(last));  // show where the files went
+  else render();
+}
+
+async function del() {
+  const sel = selectedEntries();
+  const names = sel.map((e) => e.name + (e.folder ? "/" : ""));
+  const folders = sel.some((e) => e.folder) ? "\n\nFolders can only be deleted when they are empty." : "";
+  if (!confirm(`Delete ${sel.length} item${sel.length === 1 ? "" : "s"} from the phone?\n\n` + names.slice(0, 10).join("\n") + (names.length > 10 ? "\n…" : "") + folders)) return;
+  busy++;
+  try { await api("/api/delete", { method: "POST", body: JSON.stringify({ paths: sel.map((e) => e.path) }) }); }
+  catch (e) { showErr(e.message); }
+  sel.forEach((e) => forgetThumb(e.path));
+  selected.clear();
+  lists.delete(cur);
+  busy--;
+  await open(cur);
+}
+
+async function mkdir() {
+  const name = prompt("New folder name:");
+  if (!name || !name.trim()) return;
+  busy++;
+  try {
+    await api("/api/mkdir", { method: "POST", body: JSON.stringify({ path: cur + "/" + name.trim() }) });
+    lists.delete(cur);
+    await list(cur);  // also refreshes the sidebar, which shows top-level folders from lists
+  } catch (e) { showErr(e.message); }
+  busy--;
+  render();
+}
+
+// --- finding and pairing a phone -----------------------------------------------
+function setup() {
+  renderNav();
+  updateButtons();
+  $("main").innerHTML = `<div class="setup">
+    <h2>Connect a Sony Ericsson phone</h2>
+    <ol>
+      <li>On the phone: <b>Settings → Connectivity → Bluetooth</b> → turn it <b>on</b>.</li>
+      <li>Then <b>Visibility → Show phone</b>, so the Mac can find it.</li>
+      <li>Click “Find phone” and then “Pair” next to your phone.</li>
+    </ol>
+    <button class="primary" id="bScan">Find phone</button>
+    ${phone ? '<button id="bBack">Back to files</button>' : ""}
+    <div class="found" id="found"></div>
+    <div class="hint" id="hint"></div>
+  </div>`;
+  $("bScan").onclick = scanPhones;
+  if ($("bBack")) $("bBack").onclick = () => load(false);
+}
+
+async function scanPhones() {
+  const b = $("bScan");
+  b.disabled = true; b.textContent = "Searching… (about 10 s)";
+  $("found").innerHTML = ""; $("hint").textContent = ""; showErr("");
+  try {
+    const phones = (await (await api("/api/scan", { method: "POST" })).json()).phones;
+    if (!phones.length) $("found").innerHTML = '<div>No phones found. Check that the phone is visible and try again.</div>';
+    for (const p of phones) {
+      const row = document.createElement("div");
+      row.innerHTML = `<span><b></b> <span class="size"></span></span><button class="primary"></button>`;
+      row.querySelector("b").textContent = p.name;
+      row.querySelector(".size").textContent = p.address.replaceAll("-", ":").toUpperCase() + (p.paired ? " · paired" : "");
+      const btn = row.querySelector("button");
+      btn.textContent = p.paired ? "Use this phone" : "Pair";
+      btn.onclick = () => pairPhone(p, btn);
+      $("found").appendChild(row);
+    }
+  } catch (e) { showErr(e.message); }
+  b.disabled = false; b.textContent = "Find phone";
+}
+
+async function pairPhone(p, btn) {
+  btn.disabled = true;
+  if (!p.paired) $("hint").textContent = "When the phone asks for a passcode, enter 0000 and press OK. If the Mac asks too, enter 0000 there.";
+  try {
+    await api("/api/pair", { method: "POST", body: JSON.stringify({ address: p.address }) });
+    $("hint").textContent = "";
+    lists.clear();
+    [...thumbs.keys()].forEach(forgetThumb);
+    failedThumbs.clear();
+    await load(false);
+  } catch (e) { showErr(e.message); $("hint").textContent = ""; btn.disabled = false; }
+}
+
+$("bRefresh").onclick = () => { [...thumbs.keys()].forEach(forgetThumb); failedThumbs.clear(); load(true); };
+$("bUpload").onclick = () => $("fileInput").click();
+$("fileInput").onchange = (e) => { upload(e.target.files); e.target.value = ""; };
+$("bDownload").onclick = download;
+$("bDelete").onclick = del;
+$("bMkdir").onclick = mkdir;
+$("bQuit").onclick = async () => { try { await api("/api/quit", { method: "POST" }); } catch (e) {} document.body.innerHTML = '<div class="empty">The app has quit. You can close this tab.</div>'; };
+
+let dragDepth = 0;
+window.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; $("drop").classList.add("on"); });
+window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("drop").classList.remove("on"); } });
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("drop", (e) => { e.preventDefault(); dragDepth = 0; $("drop").classList.remove("on"); upload(e.dataTransfer.files); });
+
+function initOptions(caps) {
+  const img = $("optImg"), mp3 = $("optMp3"), vid = $("optVid");
+  videoPreview = !!caps.video_preview;
+  for (const k of caps.bitrates) {
+    const o = document.createElement("option");
+    o.value = k; o.textContent = `Compress MP3 to ${k} kbps` + (k <= 48 ? " mono" : "");
+    mp3.appendChild(o);
+  }
+  img.disabled = !caps.images;
+  mp3.disabled = !caps.mp3;
+  vid.disabled = !caps.video;
+  $("optNote").textContent = !caps.mp3 ? "Music and video conversion need ffmpeg (brew install ffmpeg)."
+    : !caps.video ? "Video conversion needs the AMR encoder (brew install opencore-amr)." : "";
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem("opts") || "{}"); } catch (e) {}
+  img.value = caps.images ? (saved.img ?? "fit") : "";
+  mp3.value = caps.mp3 ? (saved.mp3 ?? "") : "";
+  vid.value = caps.video ? (saved.vid ?? "normal") : "";
+  $("optSort").checked = saved.sort ?? true;
+  const save = () => { try { localStorage.setItem("opts", JSON.stringify({ img: img.value, mp3: mp3.value, vid: vid.value, sort: $("optSort").checked })); } catch (e) {} };
+  img.onchange = mp3.onchange = vid.onchange = $("optSort").onchange = save;
+  if (lists.has(cur)) render();  // video posters depend on caps
+}
+api("/api/caps").then((r) => r.json()).then(initOptions).catch(() => {});
+
+setInterval(() => fetch("/api/ping").catch(() => {}), 10000);
+fetch("/api/ping").catch(() => {});
+setInterval(async () => {
+  const had = !!phone;
+  const s = await status();
+  // a phone was just paired elsewhere: show its files (don't retry after a failed connect)
+  if (s && s.phone && !had && !busy && !lists.has("/") && !loadFailed) load(false);
+}, 4000);
+load(false);
+</script>
+</body>
+</html>

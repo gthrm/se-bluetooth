@@ -1,0 +1,4 @@
+#!/bin/sh
+# CLI wrapper: runs obex.py with the project's virtualenv
+D="$(cd "$(dirname "$0")" && pwd)"
+exec "$D/.venv/bin/python" "$D/obex.py" "$@"
